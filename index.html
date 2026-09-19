@@ -113,6 +113,35 @@ header{
   font-size:12px;
   white-space:nowrap;
 }
+#captureButton{
+  position:absolute;
+  right:16px;
+  bottom:190px;
+  width:64px;
+  height:64px;
+  border-radius:50%;
+  border:3px solid rgba(255,255,255,.95);
+  background:rgba(220,220,220,.22);
+  color:#fff;
+  font-size:28px;
+  font-weight:700;
+  z-index:18;
+  box-shadow:0 8px 22px rgba(0,0,0,.35);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#captureButton:active{transform:scale(.97)}
+#captureLabel{
+  position:absolute;
+  right:9px;
+  bottom:160px;
+  z-index:18;
+  background:rgba(0,0,0,.58);
+  padding:4px 8px;
+  border-radius:10px;
+  font-size:12px;
+}
 #controls{
   position:fixed;
   left:8px;
@@ -186,7 +215,8 @@ input[type=range]{width:100%;accent-color:white}
 #resetAdjust{width:100%;min-height:38px;font-size:13px;margin-top:2px}
 .small{display:none}
 @media (max-width:430px){
-  .buttonRow button{font-size:13px;padding:7px 6px}
+  .buttonRow button{font-size:12px;padding:7px 4px}
+  #captureButton{width:58px;height:58px;font-size:25px}
 }
 </style>
 </head>
@@ -200,6 +230,8 @@ input[type=range]{width:100%;accent-color:white}
 <div class="crosshair"></div>
 <div id="focusRing"></div>
 <div id="focusHint">Tap the picture to focus</div>
+<button id="captureButton" aria-label="Take or save photo">📷</button>
+<div id="captureLabel">Photo</div>
 </div>
 <div id="controls">
   <div class="zoomRow">
@@ -212,7 +244,7 @@ input[type=range]{width:100%;accent-color:white}
     <button id="start" class="primary">Start</button>
     <button id="freeze" disabled>Freeze</button>
     <button id="light" disabled>Light</button>
-    <button id="save" disabled>Save</button>
+    <button id="save" disabled>Save Photo</button>
   </div>
 
   <button id="moreButton">More Controls ▴</button>
@@ -258,7 +290,9 @@ contrastValue=document.getElementById('contrastValue'),
 resetAdjust=document.getElementById('resetAdjust'),
 moreButton=document.getElementById('moreButton'),
 advancedPanel=document.getElementById('advancedPanel'),
-focusLockBtn=document.getElementById('focusLock');
+focusLockBtn=document.getElementById('focusLock'),
+captureButton=document.getElementById('captureButton'),
+captureLabel=document.getElementById('captureLabel');
 let stream=null,track=null,frozenMode=false,torchOn=false,magnification=1,readingMode='normal',focusLocked=false;
 function setMessage(t){message.textContent=t;message.style.display=t?'block':'none'}
 function applyVisuals(){
@@ -435,7 +469,10 @@ viewer.addEventListener('pointerdown',(e)=>{
 
 
 async function savePhoto(){
-  if(!stream && !frozenMode)return;
+  if(!stream && !frozenMode){
+    setMessage('Start the camera first.');
+    return;
+  }
 
   try{
     const capture=document.createElement('canvas');
@@ -535,6 +572,8 @@ moreButton.addEventListener('click',()=>{
   const open=advancedPanel.classList.toggle('open');
   moreButton.textContent=open?'Hide Controls ▾':'More Controls ▴';
   focusHint.style.bottom=open?'46vh':'176px';
+  captureButton.style.bottom=open?'46vh':'190px';
+  captureLabel.style.bottom=open?'calc(46vh - 30px)':'160px';
 });
 
 document.querySelectorAll('.modeBtn').forEach(btn=>{
@@ -574,6 +613,7 @@ startBtn.addEventListener('click',startCamera);
 freezeBtn.addEventListener('click',freezeImage);
 lightBtn.addEventListener('click',toggleTorch);
 saveBtn.addEventListener('click',savePhoto);
+captureButton.addEventListener('click',savePhoto);
 applyVisuals();
 
 window.addEventListener('pagehide',()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});
