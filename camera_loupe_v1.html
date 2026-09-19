@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>Camera Loupe</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden}
+body{display:flex;flex-direction:column}header{height:58px;flex:0 0 58px;display:flex;align-items:center;justify-content:center;background:#111;font-size:21px;font-weight:700}
+#viewer{position:relative;flex:1;min-height:0;overflow:hidden;background:#050505}
+#video,#frozen{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center}
+#frozen{display:none}
+#message{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:4;background:rgba(0,0,0,.62);padding:8px 12px;border-radius:12px;font-size:14px;text-align:center;max-width:90%}
+#zoomBadge{position:absolute;right:14px;top:14px;z-index:4;background:rgba(0,0,0,.62);padding:8px 10px;border-radius:12px;font-weight:700}
+.crosshair{position:absolute;left:50%;top:50%;width:36px;height:36px;transform:translate(-50%,-50%);border:1px solid rgba(255,255,255,.7);border-radius:50%;z-index:3;pointer-events:none}
+.crosshair:before,.crosshair:after{content:"";position:absolute;background:rgba(255,255,255,.7)}
+.crosshair:before{width:1px;height:48px;left:17px;top:-7px}.crosshair:after{height:1px;width:48px;left:-7px;top:17px}
+#controls{background:#111;padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
+.zoomRow{display:grid;grid-template-columns:54px 1fr 54px;gap:10px;align-items:center;margin-bottom:12px}
+button{border:0;border-radius:14px;background:#2a2a2a;color:#fff;font-size:18px;font-weight:700;min-height:52px;padding:10px 14px}
+button:active{transform:scale(.98)}button.primary{background:#f0f0f0;color:#111}button.active{background:#ffd54a;color:#111}button:disabled{opacity:.42}
+input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.small{margin-top:8px;text-align:center;color:#bbb;font-size:12px}
+</style>
+</head>
+<body>
+<header>🔎 Camera Loupe</header>
+<div id="viewer">
+<video id="video" autoplay playsinline muted></video>
+<canvas id="frozen"></canvas>
+<div id="message">Tap Start Camera</div>
+<div id="zoomBadge">1.0×</div>
+<div class="crosshair"></div>
+</div>
+<div id="controls">
+<div class="zoomRow">
+<button id="minus">−</button>
+<input id="zoom" type="range" min="1" max="6" value="1" step="0.1">
+<button id="plus">+</button>
+</div>
+<div class="buttonRow">
+<button id="start" class="primary">Start Camera</button>
+<button id="freeze" disabled>Freeze</button>
+<button id="light" disabled>Light</button>
+</div>
+<div class="small">Camera Loupe v1</div>
+</div>
+<script>
+const video=document.getElementById('video'),frozen=document.getElementById('frozen'),
+startBtn=document.getElementById('start'),freezeBtn=document.getElementById('freeze'),
+lightBtn=document.getElementById('light'),minusBtn=document.getElementById('minus'),
+plusBtn=document.getElementById('plus'),zoomSlider=document.getElementById('zoom'),
+zoomBadge=document.getElementById('zoomBadge'),message=document.getElementById('message');
+let stream=null,track=null,frozenMode=false,torchOn=false,magnification=1;
+function setMessage(t){message.textContent=t;message.style.display=t?'block':'none'}
+function applyZoom(){magnification=Number(zoomSlider.value);video.style.transform=`scale(${magnification})`;frozen.style.transform=`scale(${magnification})`;zoomBadge.textContent=magnification.toFixed(1)+'×'}
+async function startCamera(){
+ try{
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+  video.srcObject=stream;track=stream.getVideoTracks()[0];await video.play();
+  frozenMode=false;frozen.style.display='none';video.style.display='block';freezeBtn.disabled=false;startBtn.textContent='Restart';
+  const caps=track.getCapabilities?track.getCapabilities():{};lightBtn.disabled=!caps.torch;lightBtn.textContent=caps.torch?'Light':'No Light';
+  setMessage('');applyZoom();
+ }catch(e){console.error(e);setMessage('Allow camera access, then tap Start Camera again.')}
+}
+async function toggleTorch(){
+ if(!track||!track.getCapabilities)return;const caps=track.getCapabilities();if(!caps.torch)return;
+ torchOn=!torchOn;
+ try{await track.applyConstraints({advanced:[{torch:torchOn}]});lightBtn.classList.toggle('active',torchOn);lightBtn.textContent=torchOn?'Light On':'Light'}
+ catch(e){torchOn=false;lightBtn.classList.remove('active');lightBtn.textContent='Light';setMessage('Flashlight control is not available on this phone/browser.')}
+}
+function freezeImage(){
+ if(!stream)return;
+ if(!frozenMode){
+  const w=video.videoWidth||1280,h=video.videoHeight||720;frozen.width=w;frozen.height=h;frozen.getContext('2d').drawImage(video,0,0,w,h);
+  frozenMode=true;video.style.display='none';frozen.style.display='block';freezeBtn.textContent='Resume';freezeBtn.classList.add('active');
+ }else{
+  frozenMode=false;frozen.style.display='none';video.style.display='block';freezeBtn.textContent='Freeze';freezeBtn.classList.remove('active');
+ }
+ applyZoom();
+}
+zoomSlider.addEventListener('input',applyZoom);
+minusBtn.addEventListener('click',()=>{zoomSlider.value=Math.max(1,Number(zoomSlider.value)-.5);applyZoom()});
+plusBtn.addEventListener('click',()=>{zoomSlider.value=Math.min(6,Number(zoomSlider.value)+.5);applyZoom()});
+startBtn.addEventListener('click',startCamera);freezeBtn.addEventListener('click',freezeImage);lightBtn.addEventListener('click',toggleTorch);
+window.addEventListener('pagehide',()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});
+</script>
+</body>
+</html>
