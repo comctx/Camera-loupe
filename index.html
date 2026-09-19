@@ -44,7 +44,7 @@ body{display:flex;flex-direction:column}header{height:58px;flex:0 0 58px;display
 .zoomRow{display:grid;grid-template-columns:54px 1fr 54px;gap:10px;align-items:center;margin-bottom:12px}
 button{border:0;border-radius:14px;background:#2a2a2a;color:#fff;font-size:18px;font-weight:700;min-height:52px;padding:10px 14px}
 button:active{transform:scale(.98)}button.primary{background:#f0f0f0;color:#111}button.active{background:#ffd54a;color:#111}button:disabled{opacity:.42}
-input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .small{margin-top:8px;text-align:center;color:#bbb;font-size:12px}
 </style>
 </head>
@@ -69,13 +69,15 @@ input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-tem
 <button id="start" class="primary">Start Camera</button>
 <button id="freeze" disabled>Freeze</button>
 <button id="light" disabled>Light</button>
+<button id="save" disabled>Save Photo</button>
 </div>
-<div class="small">Camera Loupe v2 • Tap to Focus</div>
+<div class="small">Camera Loupe v3 • Tap to Focus • Save Photo</div>
 </div>
 <script>
 const video=document.getElementById('video'),frozen=document.getElementById('frozen'),
 startBtn=document.getElementById('start'),freezeBtn=document.getElementById('freeze'),
-lightBtn=document.getElementById('light'),minusBtn=document.getElementById('minus'),
+lightBtn=document.getElementById('light'),saveBtn=document.getElementById('save'),
+minusBtn=document.getElementById('minus'),
 plusBtn=document.getElementById('plus'),zoomSlider=document.getElementById('zoom'),
 zoomBadge=document.getElementById('zoomBadge'),message=document.getElementById('message'),
 viewer=document.getElementById('viewer'),focusRing=document.getElementById('focusRing'),
@@ -146,7 +148,8 @@ async function startCamera(){
     focusMode:{ideal:'continuous'}
   }});
   video.srcObject=stream;track=stream.getVideoTracks()[0];await video.play();
-  frozenMode=false;frozen.style.display='none';video.style.display='block';freezeBtn.disabled=false;startBtn.textContent='Restart';
+  frozenMode=false;frozen.style.display='none';video.style.display='block';
+  freezeBtn.disabled=false;saveBtn.disabled=false;startBtn.textContent='Restart';
   const caps=track.getCapabilities?track.getCapabilities():{};lightBtn.disabled=!caps.torch;lightBtn.textContent=caps.torch?'Light':'No Light';
   setMessage('');applyZoom();
  }catch(e){console.error(e);setMessage('Allow camera access, then tap Start Camera again.')}
@@ -171,10 +174,97 @@ viewer.addEventListener('pointerdown',(e)=>{
   focusAtPoint(e.clientX,e.clientY);
 });
 
+
+async function savePhoto(){
+  if(!stream && !frozenMode)return;
+
+  try{
+    const capture=document.createElement('canvas');
+    const ctx=capture.getContext('2d');
+
+    let source, sw, sh;
+
+    if(frozenMode){
+      source=frozen;
+      sw=frozen.width;
+      sh=frozen.height;
+    }else{
+      source=video;
+      sw=video.videoWidth;
+      sh=video.videoHeight;
+    }
+
+    if(!sw || !sh){
+      setMessage('Camera image is not ready yet.');
+      return;
+    }
+
+    // Save the center area at the same magnification shown on screen.
+    const z=Math.max(1,Number(zoomSlider.value));
+    const cropW=sw/z;
+    const cropH=sh/z;
+    const sx=(sw-cropW)/2;
+    const sy=(sh-cropH)/2;
+
+    capture.width=Math.round(cropW);
+    capture.height=Math.round(cropH);
+
+    ctx.drawImage(
+      source,
+      sx,sy,cropW,cropH,
+      0,0,capture.width,capture.height
+    );
+
+    const blob=await new Promise(resolve=>
+      capture.toBlob(resolve,'image/jpeg',0.95)
+    );
+
+    if(!blob){
+      setMessage('Could not create the photo.');
+      return;
+    }
+
+    const file=new File(
+      [blob],
+      'camera-loupe-'+new Date().toISOString().replace(/[:.]/g,'-')+'.jpg',
+      {type:'image/jpeg'}
+    );
+
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({
+        files:[file],
+        title:'Camera Loupe Photo'
+      });
+      setMessage('Photo ready to save or share.');
+    }else{
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),2000);
+      setMessage('Photo saved/downloaded.');
+    }
+
+    clearTimeout(savePhoto.timer);
+    savePhoto.timer=setTimeout(()=>setMessage(''),1600);
+
+  }catch(err){
+    if(err && err.name==='AbortError')return;
+    console.error(err);
+    setMessage('Could not save the photo on this browser.');
+  }
+}
+
 zoomSlider.addEventListener('input',applyZoom);
 minusBtn.addEventListener('click',()=>{zoomSlider.value=Math.max(1,Number(zoomSlider.value)-.5);applyZoom()});
 plusBtn.addEventListener('click',()=>{zoomSlider.value=Math.min(6,Number(zoomSlider.value)+.5);applyZoom()});
-startBtn.addEventListener('click',startCamera);freezeBtn.addEventListener('click',freezeImage);lightBtn.addEventListener('click',toggleTorch);
+startBtn.addEventListener('click',startCamera);
+freezeBtn.addEventListener('click',freezeImage);
+lightBtn.addEventListener('click',toggleTorch);
+saveBtn.addEventListener('click',savePhoto);
 window.addEventListener('pagehide',()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});
 </script>
 </body>
