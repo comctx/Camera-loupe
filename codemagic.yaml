@@ -1,0 +1,42 @@
+workflows:
+  camera-loupe-ios-test:
+    name: Camera Loupe iOS Test
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      node: 22
+      xcode: latest
+
+    scripts:
+      - name: Create Capacitor iOS project
+        script: |
+          set -e
+
+          npm init -y
+          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/ios@latest
+
+          rm -rf www ios
+          mkdir -p www
+          cp index.html www/index.html
+
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.donaldreckman.cameraloupe",
+            "appName": "Camera Loupe",
+            "webDir": "www"
+          }
+          EOF
+
+          npx cap add ios
+
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string Camera Loupe uses the camera to magnify objects and text." ios/App/App/Info.plist ||           /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription Camera Loupe uses the camera to magnify objects and text." ios/App/App/Info.plist
+
+      - name: Build iOS simulator app
+        script: |
+          set -e
+
+          xcodebuild             -project ios/App/App.xcodeproj             -scheme App             -sdk iphonesimulator             -configuration Debug             -derivedDataPath build             CODE_SIGN_IDENTITY=""             CODE_SIGNING_REQUIRED=NO             CODE_SIGNING_ALLOWED=NO             build
+
+    artifacts:
+      - build/Build/Products/Debug-iphonesimulator/App.app
