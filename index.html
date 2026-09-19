@@ -6,16 +6,89 @@
 <meta name="theme-color" content="#111111">
 <title>Camera Loupe</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden}
-body{display:flex;flex-direction:column}header{height:58px;flex:0 0 58px;display:flex;align-items:center;justify-content:center;background:#111;font-size:21px;font-weight:700}
-#viewer{position:relative;flex:1;min-height:0;overflow:hidden;background:#050505}
-#video,#frozen{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center}
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  background:#000;
+  color:#fff;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  overflow:hidden;
+}
+body{position:relative}
+header{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  height:50px;
+  z-index:20;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(to bottom,rgba(0,0,0,.72),rgba(0,0,0,0));
+  font-size:20px;
+  font-weight:700;
+  pointer-events:none;
+}
+#viewer{
+  position:fixed;
+  inset:0;
+  overflow:hidden;
+  background:#050505;
+}
+#video,#frozen{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  transform-origin:center;
+}
 #frozen{display:none}
-#message{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:4;background:rgba(0,0,0,.62);padding:8px 12px;border-radius:12px;font-size:14px;text-align:center;max-width:90%}
-#zoomBadge{position:absolute;right:14px;top:14px;z-index:4;background:rgba(0,0,0,.62);padding:8px 10px;border-radius:12px;font-weight:700}
-.crosshair{position:absolute;left:50%;top:50%;width:36px;height:36px;transform:translate(-50%,-50%);border:1px solid rgba(255,255,255,.7);border-radius:50%;z-index:3;pointer-events:none}
-.crosshair:before,.crosshair:after{content:"";position:absolute;background:rgba(255,255,255,.7)}
-.crosshair:before{width:1px;height:48px;left:17px;top:-7px}.crosshair:after{height:1px;width:48px;left:-7px;top:17px}
+#message{
+  position:absolute;
+  top:58px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:15;
+  background:rgba(0,0,0,.68);
+  padding:8px 12px;
+  border-radius:12px;
+  font-size:14px;
+  text-align:center;
+  max-width:88%;
+}
+#zoomBadge{
+  position:absolute;
+  right:12px;
+  top:58px;
+  z-index:14;
+  background:rgba(0,0,0,.62);
+  padding:7px 9px;
+  border-radius:11px;
+  font-weight:700;
+}
+.crosshair{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:36px;
+  height:36px;
+  transform:translate(-50%,-50%);
+  border:1px solid rgba(255,255,255,.75);
+  border-radius:50%;
+  z-index:8;
+  pointer-events:none;
+}
+.crosshair:before,.crosshair:after{
+  content:"";
+  position:absolute;
+  background:rgba(255,255,255,.75);
+}
+.crosshair:before{width:1px;height:48px;left:17px;top:-7px}
+.crosshair:after{height:1px;width:48px;left:-7px;top:17px}
 #focusRing{
   position:absolute;
   width:64px;
@@ -23,7 +96,7 @@ body{display:flex;flex-direction:column}header{height:58px;flex:0 0 58px;display
   border:2px solid #ffd54a;
   border-radius:50%;
   transform:translate(-50%,-50%);
-  z-index:5;
+  z-index:16;
   pointer-events:none;
   display:none;
   box-shadow:0 0 0 2px rgba(0,0,0,.35);
@@ -31,29 +104,90 @@ body{display:flex;flex-direction:column}header{height:58px;flex:0 0 58px;display
 #focusHint{
   position:absolute;
   left:50%;
-  bottom:14px;
+  bottom:176px;
   transform:translateX(-50%);
-  z-index:4;
+  z-index:14;
   background:rgba(0,0,0,.58);
-  padding:7px 10px;
+  padding:6px 9px;
   border-radius:10px;
-  font-size:13px;
+  font-size:12px;
   white-space:nowrap;
 }
-#controls{background:#111;padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
-.zoomRow{display:grid;grid-template-columns:54px 1fr 54px;gap:10px;align-items:center;margin-bottom:12px}
-button{border:0;border-radius:14px;background:#2a2a2a;color:#fff;font-size:18px;font-weight:700;min-height:52px;padding:10px 14px}
-button:active{transform:scale(.98)}button.primary{background:#f0f0f0;color:#111}button.active{background:#ffd54a;color:#111}button:disabled{opacity:.42}
-input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.modeRow{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 12px}
-.modeBtn{min-height:44px;font-size:14px}
-.modeBtn.active{background:#ffd54a;color:#111}
-.adjustments{margin:12px 0 10px;display:grid;gap:10px}
-.adjustRow{display:grid;grid-template-columns:92px 1fr 56px;gap:10px;align-items:center}
-.adjustRow label{font-size:14px;font-weight:700}
-.adjustValue{text-align:right;font-size:13px;color:#ccc}
-#resetAdjust{width:100%;min-height:44px;font-size:15px;margin-top:2px}
-.small{margin-top:8px;text-align:center;color:#bbb;font-size:12px}
+#controls{
+  position:fixed;
+  left:8px;
+  right:8px;
+  bottom:calc(8px + env(safe-area-inset-bottom));
+  z-index:30;
+  background:rgba(18,18,18,.82);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:20px;
+  padding:10px;
+}
+.zoomRow{
+  display:grid;
+  grid-template-columns:44px 1fr 44px;
+  gap:8px;
+  align-items:center;
+  margin-bottom:8px;
+}
+button{
+  border:0;
+  border-radius:12px;
+  background:#2a2a2a;
+  color:#fff;
+  font-size:15px;
+  font-weight:700;
+  min-height:44px;
+  padding:8px 10px;
+}
+button:active{transform:scale(.98)}
+button.primary{background:#f0f0f0;color:#111}
+button.active{background:#ffd54a;color:#111}
+button:disabled{opacity:.42}
+input[type=range]{width:100%;accent-color:white}
+.buttonRow{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:7px;
+}
+#moreButton{
+  width:100%;
+  margin-top:8px;
+  min-height:38px;
+  font-size:14px;
+}
+#advancedPanel{
+  display:none;
+  margin-top:8px;
+  max-height:42vh;
+  overflow:auto;
+  padding-top:4px;
+}
+#advancedPanel.open{display:block}
+.modeRow{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:7px;
+  margin-bottom:9px;
+}
+.modeBtn{min-height:40px;font-size:13px}
+.adjustments{display:grid;gap:8px}
+.adjustRow{
+  display:grid;
+  grid-template-columns:82px 1fr 50px;
+  gap:8px;
+  align-items:center;
+}
+.adjustRow label{font-size:13px;font-weight:700}
+.adjustValue{text-align:right;font-size:12px;color:#ccc}
+#resetAdjust{width:100%;min-height:38px;font-size:13px;margin-top:2px}
+.small{display:none}
+@media (max-width:430px){
+  .buttonRow button{font-size:13px;padding:7px 6px}
+}
 </style>
 </head>
 <body>
@@ -68,41 +202,44 @@ input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-tem
 <div id="focusHint">Tap the picture to focus</div>
 </div>
 <div id="controls">
-<div class="zoomRow">
-<button id="minus">−</button>
-<input id="zoom" type="range" min="1" max="6" value="1" step="0.1">
-<button id="plus">+</button>
-</div>
-
-<div class="modeRow">
-  <button class="modeBtn active" data-mode="normal">Normal</button>
-  <button class="modeBtn" data-mode="contrast">High Contrast</button>
-  <button class="modeBtn" data-mode="bw">Black & White</button>
-  <button class="modeBtn" data-mode="invert">Invert Colors</button>
-</div>
-
-<div class="adjustments">
-  <div class="adjustRow">
-    <label for="brightness">Brightness</label>
-    <input id="brightness" type="range" min="50" max="180" value="100" step="5">
-    <div id="brightnessValue" class="adjustValue">100%</div>
+  <div class="zoomRow">
+    <button id="minus">−</button>
+    <input id="zoom" type="range" min="1" max="6" value="1" step="0.1">
+    <button id="plus">+</button>
   </div>
-  <div class="adjustRow">
-    <label for="contrast">Contrast</label>
-    <input id="contrast" type="range" min="50" max="200" value="100" step="5">
-    <div id="contrastValue" class="adjustValue">100%</div>
-  </div>
-  <button id="resetAdjust">Reset Brightness & Contrast</button>
-</div>
 
-<div class="buttonRow">
-<button id="start" class="primary">Start Camera</button>
-<button id="freeze" disabled>Freeze</button>
-<button id="light" disabled>Light</button>
-<button id="save" disabled>Save Photo</button>
-</div>
-<div class="small">Camera Loupe v5 • Reading Modes</div>
-</div>
+  <div class="buttonRow">
+    <button id="start" class="primary">Start</button>
+    <button id="freeze" disabled>Freeze</button>
+    <button id="light" disabled>Light</button>
+    <button id="save" disabled>Save</button>
+  </div>
+
+  <button id="moreButton">More Controls ▴</button>
+
+  <div id="advancedPanel">
+    <div class="modeRow">
+      <button class="modeBtn active" data-mode="normal">Normal</button>
+      <button class="modeBtn" data-mode="contrast">High Contrast</button>
+      <button class="modeBtn" data-mode="bw">Black & White</button>
+      <button class="modeBtn" data-mode="invert">Invert</button>
+    </div>
+
+    <div class="adjustments">
+      <div class="adjustRow">
+        <label for="brightness">Brightness</label>
+        <input id="brightness" type="range" min="50" max="180" value="100" step="5">
+        <div id="brightnessValue" class="adjustValue">100%</div>
+      </div>
+      <div class="adjustRow">
+        <label for="contrast">Contrast</label>
+        <input id="contrast" type="range" min="50" max="200" value="100" step="5">
+        <div id="contrastValue" class="adjustValue">100%</div>
+      </div>
+      <button id="resetAdjust">Reset Brightness & Contrast</button>
+    </div>
+  </div>
+</div></div>
 <script>
 const video=document.getElementById('video'),frozen=document.getElementById('frozen'),
 startBtn=document.getElementById('start'),freezeBtn=document.getElementById('freeze'),
@@ -116,7 +253,9 @@ brightnessSlider=document.getElementById('brightness'),
 contrastSlider=document.getElementById('contrast'),
 brightnessValue=document.getElementById('brightnessValue'),
 contrastValue=document.getElementById('contrastValue'),
-resetAdjust=document.getElementById('resetAdjust');
+resetAdjust=document.getElementById('resetAdjust'),
+moreButton=document.getElementById('moreButton'),
+advancedPanel=document.getElementById('advancedPanel');
 let stream=null,track=null,frozenMode=false,torchOn=false,magnification=1,readingMode='normal';
 function setMessage(t){message.textContent=t;message.style.display=t?'block':'none'}
 function applyVisuals(){
@@ -326,6 +465,12 @@ async function savePhoto(){
     setMessage('Could not save the photo on this browser.');
   }
 }
+
+moreButton.addEventListener('click',()=>{
+  const open=advancedPanel.classList.toggle('open');
+  moreButton.textContent=open?'Hide Controls ▾':'More Controls ▴';
+  focusHint.style.bottom=open?'46vh':'176px';
+});
 
 document.querySelectorAll('.modeBtn').forEach(btn=>{
   btn.addEventListener('click',()=>{
