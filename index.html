@@ -16,6 +16,30 @@ body{display:flex;flex-direction:column}header{height:58px;flex:0 0 58px;display
 .crosshair{position:absolute;left:50%;top:50%;width:36px;height:36px;transform:translate(-50%,-50%);border:1px solid rgba(255,255,255,.7);border-radius:50%;z-index:3;pointer-events:none}
 .crosshair:before,.crosshair:after{content:"";position:absolute;background:rgba(255,255,255,.7)}
 .crosshair:before{width:1px;height:48px;left:17px;top:-7px}.crosshair:after{height:1px;width:48px;left:-7px;top:17px}
+#focusRing{
+  position:absolute;
+  width:64px;
+  height:64px;
+  border:2px solid #ffd54a;
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+  z-index:5;
+  pointer-events:none;
+  display:none;
+  box-shadow:0 0 0 2px rgba(0,0,0,.35);
+}
+#focusHint{
+  position:absolute;
+  left:50%;
+  bottom:14px;
+  transform:translateX(-50%);
+  z-index:4;
+  background:rgba(0,0,0,.58);
+  padding:7px 10px;
+  border-radius:10px;
+  font-size:13px;
+  white-space:nowrap;
+}
 #controls{background:#111;padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
 .zoomRow{display:grid;grid-template-columns:54px 1fr 54px;gap:10px;align-items:center;margin-bottom:12px}
 button{border:0;border-radius:14px;background:#2a2a2a;color:#fff;font-size:18px;font-weight:700;min-height:52px;padding:10px 14px}
@@ -32,6 +56,8 @@ input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-tem
 <div id="message">Tap Start Camera</div>
 <div id="zoomBadge">1.0×</div>
 <div class="crosshair"></div>
+<div id="focusRing"></div>
+<div id="focusHint">Tap the picture to focus</div>
 </div>
 <div id="controls">
 <div class="zoomRow">
@@ -44,21 +70,81 @@ input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-tem
 <button id="freeze" disabled>Freeze</button>
 <button id="light" disabled>Light</button>
 </div>
-<div class="small">Camera Loupe v1</div>
+<div class="small">Camera Loupe v2 • Tap to Focus</div>
 </div>
 <script>
 const video=document.getElementById('video'),frozen=document.getElementById('frozen'),
 startBtn=document.getElementById('start'),freezeBtn=document.getElementById('freeze'),
 lightBtn=document.getElementById('light'),minusBtn=document.getElementById('minus'),
 plusBtn=document.getElementById('plus'),zoomSlider=document.getElementById('zoom'),
-zoomBadge=document.getElementById('zoomBadge'),message=document.getElementById('message');
+zoomBadge=document.getElementById('zoomBadge'),message=document.getElementById('message'),
+viewer=document.getElementById('viewer'),focusRing=document.getElementById('focusRing'),
+focusHint=document.getElementById('focusHint');
 let stream=null,track=null,frozenMode=false,torchOn=false,magnification=1;
 function setMessage(t){message.textContent=t;message.style.display=t?'block':'none'}
 function applyZoom(){magnification=Number(zoomSlider.value);video.style.transform=`scale(${magnification})`;frozen.style.transform=`scale(${magnification})`;zoomBadge.textContent=magnification.toFixed(1)+'×'}
+
+function showFocusRing(x,y){
+  focusRing.style.left=x+'px';
+  focusRing.style.top=y+'px';
+  focusRing.style.display='block';
+  focusRing.animate(
+    [{transform:'translate(-50%,-50%) scale(1.35)',opacity:.4},
+     {transform:'translate(-50%,-50%) scale(1)',opacity:1}],
+    {duration:180,easing:'ease-out'}
+  );
+  clearTimeout(showFocusRing.timer);
+  showFocusRing.timer=setTimeout(()=>{focusRing.style.display='none'},900);
+}
+
+async function focusAtPoint(clientX,clientY){
+  if(!track || frozenMode)return;
+
+  const rect=viewer.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+  const y=Math.max(0,Math.min(1,(clientY-rect.top)/rect.height));
+
+  showFocusRing(clientX-rect.left,clientY-rect.top);
+
+  try{
+    const caps=track.getCapabilities ? track.getCapabilities() : {};
+    const advanced={};
+
+    if(caps.pointsOfInterest){
+      advanced.pointsOfInterest=[{x,y}];
+    }
+
+    if(Array.isArray(caps.focusMode)){
+      if(caps.focusMode.includes('single-shot')) advanced.focusMode='single-shot';
+      else if(caps.focusMode.includes('continuous')) advanced.focusMode='continuous';
+    }
+
+    if(Object.keys(advanced).length){
+      await track.applyConstraints({advanced:[advanced]});
+      focusHint.textContent='Focused';
+    }else{
+      focusHint.textContent='Continuous autofocus';
+    }
+  }catch(err){
+    console.error(err);
+    focusHint.textContent='Continuous autofocus';
+  }
+
+  clearTimeout(focusAtPoint.timer);
+  focusAtPoint.timer=setTimeout(()=>{
+    focusHint.textContent='Tap the picture to focus';
+  },1200);
+}
+
 async function startCamera(){
  try{
   if(stream)stream.getTracks().forEach(t=>t.stop());
-  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{
+    facingMode:{ideal:'environment'},
+    width:{ideal:1920},
+    height:{ideal:1080},
+    focusMode:{ideal:'continuous'}
+  }});
   video.srcObject=stream;track=stream.getVideoTracks()[0];await video.play();
   frozenMode=false;frozen.style.display='none';video.style.display='block';freezeBtn.disabled=false;startBtn.textContent='Restart';
   const caps=track.getCapabilities?track.getCapabilities():{};lightBtn.disabled=!caps.torch;lightBtn.textContent=caps.torch?'Light':'No Light';
@@ -81,6 +167,10 @@ function freezeImage(){
  }
  applyZoom();
 }
+viewer.addEventListener('pointerdown',(e)=>{
+  focusAtPoint(e.clientX,e.clientY);
+});
+
 zoomSlider.addEventListener('input',applyZoom);
 minusBtn.addEventListener('click',()=>{zoomSlider.value=Math.max(1,Number(zoomSlider.value)-.5);applyZoom()});
 plusBtn.addEventListener('click',()=>{zoomSlider.value=Math.min(6,Number(zoomSlider.value)+.5);applyZoom()});
