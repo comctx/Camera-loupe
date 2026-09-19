@@ -45,6 +45,9 @@ body{display:flex;flex-direction:column}header{height:58px;flex:0 0 58px;display
 button{border:0;border-radius:14px;background:#2a2a2a;color:#fff;font-size:18px;font-weight:700;min-height:52px;padding:10px 14px}
 button:active{transform:scale(.98)}button.primary{background:#f0f0f0;color:#111}button.active{background:#ffd54a;color:#111}button:disabled{opacity:.42}
 input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.modeRow{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 12px}
+.modeBtn{min-height:44px;font-size:14px}
+.modeBtn.active{background:#ffd54a;color:#111}
 .adjustments{margin:12px 0 10px;display:grid;gap:10px}
 .adjustRow{display:grid;grid-template-columns:92px 1fr 56px;gap:10px;align-items:center}
 .adjustRow label{font-size:14px;font-weight:700}
@@ -71,6 +74,13 @@ input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-tem
 <button id="plus">+</button>
 </div>
 
+<div class="modeRow">
+  <button class="modeBtn active" data-mode="normal">Normal</button>
+  <button class="modeBtn" data-mode="contrast">High Contrast</button>
+  <button class="modeBtn" data-mode="bw">Black & White</button>
+  <button class="modeBtn" data-mode="invert">Invert Colors</button>
+</div>
+
 <div class="adjustments">
   <div class="adjustRow">
     <label for="brightness">Brightness</label>
@@ -91,7 +101,7 @@ input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-tem
 <button id="light" disabled>Light</button>
 <button id="save" disabled>Save Photo</button>
 </div>
-<div class="small">Camera Loupe v4 • Brightness & Contrast</div>
+<div class="small">Camera Loupe v5 • Reading Modes</div>
 </div>
 <script>
 const video=document.getElementById('video'),frozen=document.getElementById('frozen'),
@@ -107,7 +117,7 @@ contrastSlider=document.getElementById('contrast'),
 brightnessValue=document.getElementById('brightnessValue'),
 contrastValue=document.getElementById('contrastValue'),
 resetAdjust=document.getElementById('resetAdjust');
-let stream=null,track=null,frozenMode=false,torchOn=false,magnification=1;
+let stream=null,track=null,frozenMode=false,torchOn=false,magnification=1,readingMode='normal';
 function setMessage(t){message.textContent=t;message.style.display=t?'block':'none'}
 function applyVisuals(){
   magnification=Number(zoomSlider.value);
@@ -117,7 +127,12 @@ function applyVisuals(){
   video.style.transform=`scale(${magnification})`;
   frozen.style.transform=`scale(${magnification})`;
 
-  const filter=`brightness(${brightness}%) contrast(${contrast}%)`;
+  let extra='';
+  if(readingMode==='contrast') extra=' contrast(165%) saturate(115%)';
+  if(readingMode==='bw') extra=' grayscale(100%) contrast(145%)';
+  if(readingMode==='invert') extra=' invert(100%) grayscale(100%) contrast(135%)';
+
+  const filter=`brightness(${brightness}%) contrast(${contrast}%)${extra}`;
   video.style.filter=filter;
   frozen.style.filter=filter;
 
@@ -253,7 +268,13 @@ async function savePhoto(){
 
     const brightness=Number(brightnessSlider.value);
     const contrast=Number(contrastSlider.value);
-    ctx.filter=`brightness(${brightness}%) contrast(${contrast}%)`;
+
+    let extra='';
+    if(readingMode==='contrast') extra=' contrast(165%) saturate(115%)';
+    if(readingMode==='bw') extra=' grayscale(100%) contrast(145%)';
+    if(readingMode==='invert') extra=' invert(100%) grayscale(100%) contrast(135%)';
+
+    ctx.filter=`brightness(${brightness}%) contrast(${contrast}%)${extra}`;
 
     ctx.drawImage(
       source,
@@ -305,6 +326,25 @@ async function savePhoto(){
     setMessage('Could not save the photo on this browser.');
   }
 }
+
+document.querySelectorAll('.modeBtn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    readingMode=btn.dataset.mode;
+    document.querySelectorAll('.modeBtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    applyVisuals();
+
+    const names={
+      normal:'Normal view',
+      contrast:'High Contrast mode',
+      bw:'Black & White mode',
+      invert:'Invert Colors mode'
+    };
+    setMessage(names[readingMode]);
+    clearTimeout(btn._timer);
+    btn._timer=setTimeout(()=>setMessage(''),1000);
+  });
+});
 
 zoomSlider.addEventListener('input',applyVisuals);
 brightnessSlider.addEventListener('input',applyVisuals);
