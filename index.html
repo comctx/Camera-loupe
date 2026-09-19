@@ -218,6 +218,8 @@ input[type=range]{width:100%;accent-color:white}
   <button id="moreButton">More Controls ▴</button>
 
   <div id="advancedPanel">
+    <button id="focusLock" style="width:100%;margin-bottom:8px;">Lock Focus</button>
+
     <div class="modeRow">
       <button class="modeBtn active" data-mode="normal">Normal</button>
       <button class="modeBtn" data-mode="contrast">High Contrast</button>
@@ -255,8 +257,9 @@ brightnessValue=document.getElementById('brightnessValue'),
 contrastValue=document.getElementById('contrastValue'),
 resetAdjust=document.getElementById('resetAdjust'),
 moreButton=document.getElementById('moreButton'),
-advancedPanel=document.getElementById('advancedPanel');
-let stream=null,track=null,frozenMode=false,torchOn=false,magnification=1,readingMode='normal';
+advancedPanel=document.getElementById('advancedPanel'),
+focusLockBtn=document.getElementById('focusLock');
+let stream=null,track=null,frozenMode=false,torchOn=false,magnification=1,readingMode='normal',focusLocked=false;
 function setMessage(t){message.textContent=t;message.style.display=t?'block':'none'}
 function applyVisuals(){
   magnification=Number(zoomSlider.value);
@@ -298,6 +301,12 @@ function showFocusRing(x,y){
 async function focusAtPoint(clientX,clientY){
   if(!track || frozenMode)return;
 
+  if(focusLocked){
+    focusLocked=false;
+    focusLockBtn.classList.remove('active');
+    focusLockBtn.textContent='Lock Focus';
+  }
+
   const rect=viewer.getBoundingClientRect();
   const x=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
   const y=Math.max(0,Math.min(1,(clientY-rect.top)/rect.height));
@@ -334,9 +343,63 @@ async function focusAtPoint(clientX,clientY){
   },1200);
 }
 
+
+async function toggleFocusLock(){
+  if(!track){
+    setMessage('Start the camera first.');
+    return;
+  }
+
+  try{
+    const caps=track.getCapabilities ? track.getCapabilities() : {};
+    const modes=Array.isArray(caps.focusMode) ? caps.focusMode : [];
+
+    if(!focusLocked){
+      // Best available browser-level lock:
+      // manual if supported, otherwise single-shot.
+      if(modes.includes('manual')){
+        await track.applyConstraints({advanced:[{focusMode:'manual'}]});
+        focusLocked=true;
+      }else if(modes.includes('single-shot')){
+        await track.applyConstraints({advanced:[{focusMode:'single-shot'}]});
+        focusLocked=true;
+      }else{
+        setMessage('Focus Lock is not supported by this phone/browser.');
+        return;
+      }
+
+      focusLockBtn.classList.add('active');
+      focusLockBtn.textContent='Unlock Focus';
+      setMessage('Focus locked.');
+    }else{
+      if(modes.includes('continuous')){
+        await track.applyConstraints({advanced:[{focusMode:'continuous'}]});
+      }
+      focusLocked=false;
+      focusLockBtn.classList.remove('active');
+      focusLockBtn.textContent='Lock Focus';
+      setMessage('Autofocus restored.');
+    }
+
+    clearTimeout(toggleFocusLock.timer);
+    toggleFocusLock.timer=setTimeout(()=>setMessage(''),1200);
+
+  }catch(err){
+    console.error(err);
+    focusLocked=false;
+    focusLockBtn.classList.remove('active');
+    focusLockBtn.textContent='Lock Focus';
+    setMessage('Focus Lock is not supported by this phone/browser.');
+  }
+}
+
 async function startCamera(){
  try{
   if(stream)stream.getTracks().forEach(t=>t.stop());
+  focusLocked=false;
+  focusLockBtn.classList.remove('active');
+  focusLockBtn.textContent='Lock Focus';
+
   stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{
     facingMode:{ideal:'environment'},
     width:{ideal:1920},
@@ -465,6 +528,8 @@ async function savePhoto(){
     setMessage('Could not save the photo on this browser.');
   }
 }
+
+focusLockBtn.addEventListener('click',toggleFocusLock);
 
 moreButton.addEventListener('click',()=>{
   const open=advancedPanel.classList.toggle('open');
