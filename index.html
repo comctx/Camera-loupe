@@ -45,6 +45,11 @@ body{display:flex;flex-direction:column}header{height:58px;flex:0 0 58px;display
 button{border:0;border-radius:14px;background:#2a2a2a;color:#fff;font-size:18px;font-weight:700;min-height:52px;padding:10px 14px}
 button:active{transform:scale(.98)}button.primary{background:#f0f0f0;color:#111}button.active{background:#ffd54a;color:#111}button:disabled{opacity:.42}
 input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.adjustments{margin:12px 0 10px;display:grid;gap:10px}
+.adjustRow{display:grid;grid-template-columns:92px 1fr 56px;gap:10px;align-items:center}
+.adjustRow label{font-size:14px;font-weight:700}
+.adjustValue{text-align:right;font-size:13px;color:#ccc}
+#resetAdjust{width:100%;min-height:44px;font-size:15px;margin-top:2px}
 .small{margin-top:8px;text-align:center;color:#bbb;font-size:12px}
 </style>
 </head>
@@ -65,13 +70,28 @@ input[type=range]{width:100%;accent-color:white}.buttonRow{display:grid;grid-tem
 <input id="zoom" type="range" min="1" max="6" value="1" step="0.1">
 <button id="plus">+</button>
 </div>
+
+<div class="adjustments">
+  <div class="adjustRow">
+    <label for="brightness">Brightness</label>
+    <input id="brightness" type="range" min="50" max="180" value="100" step="5">
+    <div id="brightnessValue" class="adjustValue">100%</div>
+  </div>
+  <div class="adjustRow">
+    <label for="contrast">Contrast</label>
+    <input id="contrast" type="range" min="50" max="200" value="100" step="5">
+    <div id="contrastValue" class="adjustValue">100%</div>
+  </div>
+  <button id="resetAdjust">Reset Brightness & Contrast</button>
+</div>
+
 <div class="buttonRow">
 <button id="start" class="primary">Start Camera</button>
 <button id="freeze" disabled>Freeze</button>
 <button id="light" disabled>Light</button>
 <button id="save" disabled>Save Photo</button>
 </div>
-<div class="small">Camera Loupe v3 • Tap to Focus • Save Photo</div>
+<div class="small">Camera Loupe v4 • Brightness & Contrast</div>
 </div>
 <script>
 const video=document.getElementById('video'),frozen=document.getElementById('frozen'),
@@ -81,10 +101,32 @@ minusBtn=document.getElementById('minus'),
 plusBtn=document.getElementById('plus'),zoomSlider=document.getElementById('zoom'),
 zoomBadge=document.getElementById('zoomBadge'),message=document.getElementById('message'),
 viewer=document.getElementById('viewer'),focusRing=document.getElementById('focusRing'),
-focusHint=document.getElementById('focusHint');
+focusHint=document.getElementById('focusHint'),
+brightnessSlider=document.getElementById('brightness'),
+contrastSlider=document.getElementById('contrast'),
+brightnessValue=document.getElementById('brightnessValue'),
+contrastValue=document.getElementById('contrastValue'),
+resetAdjust=document.getElementById('resetAdjust');
 let stream=null,track=null,frozenMode=false,torchOn=false,magnification=1;
 function setMessage(t){message.textContent=t;message.style.display=t?'block':'none'}
-function applyZoom(){magnification=Number(zoomSlider.value);video.style.transform=`scale(${magnification})`;frozen.style.transform=`scale(${magnification})`;zoomBadge.textContent=magnification.toFixed(1)+'×'}
+function applyVisuals(){
+  magnification=Number(zoomSlider.value);
+  const brightness=Number(brightnessSlider.value);
+  const contrast=Number(contrastSlider.value);
+
+  video.style.transform=`scale(${magnification})`;
+  frozen.style.transform=`scale(${magnification})`;
+
+  const filter=`brightness(${brightness}%) contrast(${contrast}%)`;
+  video.style.filter=filter;
+  frozen.style.filter=filter;
+
+  zoomBadge.textContent=magnification.toFixed(1)+'×';
+  brightnessValue.textContent=brightness+'%';
+  contrastValue.textContent=contrast+'%';
+}
+
+function applyZoom(){applyVisuals()}
 
 function showFocusRing(x,y){
   focusRing.style.left=x+'px';
@@ -209,11 +251,17 @@ async function savePhoto(){
     capture.width=Math.round(cropW);
     capture.height=Math.round(cropH);
 
+    const brightness=Number(brightnessSlider.value);
+    const contrast=Number(contrastSlider.value);
+    ctx.filter=`brightness(${brightness}%) contrast(${contrast}%)`;
+
     ctx.drawImage(
       source,
       sx,sy,cropW,cropH,
       0,0,capture.width,capture.height
     );
+
+    ctx.filter='none';
 
     const blob=await new Promise(resolve=>
       capture.toBlob(resolve,'image/jpeg',0.95)
@@ -258,13 +306,26 @@ async function savePhoto(){
   }
 }
 
-zoomSlider.addEventListener('input',applyZoom);
+zoomSlider.addEventListener('input',applyVisuals);
+brightnessSlider.addEventListener('input',applyVisuals);
+contrastSlider.addEventListener('input',applyVisuals);
+
+resetAdjust.addEventListener('click',()=>{
+  brightnessSlider.value=100;
+  contrastSlider.value=100;
+  applyVisuals();
+  setMessage('Brightness and contrast reset.');
+  clearTimeout(resetAdjust.timer);
+  resetAdjust.timer=setTimeout(()=>setMessage(''),1200);
+});
 minusBtn.addEventListener('click',()=>{zoomSlider.value=Math.max(1,Number(zoomSlider.value)-.5);applyZoom()});
 plusBtn.addEventListener('click',()=>{zoomSlider.value=Math.min(6,Number(zoomSlider.value)+.5);applyZoom()});
 startBtn.addEventListener('click',startCamera);
 freezeBtn.addEventListener('click',freezeImage);
 lightBtn.addEventListener('click',toggleTorch);
 saveBtn.addEventListener('click',savePhoto);
+applyVisuals();
+
 window.addEventListener('pagehide',()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});
 </script>
 </body>
