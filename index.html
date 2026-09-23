@@ -22,11 +22,13 @@ header{
   top:0;
   left:0;
   right:0;
-  height:50px;
+  height:64px;
   z-index:20;
   display:flex;
+  flex-direction:column;
   align-items:center;
   justify-content:center;
+  gap:1px;
   background:linear-gradient(to bottom,rgba(0,0,0,.72),rgba(0,0,0,0));
   font-size:20px;
   font-weight:700;
@@ -49,7 +51,7 @@ header{
 #frozen{display:none}
 #message{
   position:absolute;
-  top:58px;
+  top:72px;
   left:50%;
   transform:translateX(-50%);
   z-index:15;
@@ -63,7 +65,7 @@ header{
 #zoomBadge{
   position:absolute;
   right:12px;
-  top:58px;
+  top:72px;
   z-index:14;
   background:rgba(0,0,0,.62);
   padding:7px 9px;
@@ -221,18 +223,26 @@ input[type=range]{width:100%;accent-color:white}
 </style>
 </head>
 <body>
-<header>🔎 Camera Loupe</header>
+
+<header>
+  <div>🔎 Camera Loupe</div>
+  <div style="color:#bbb;font-size:11px;font-weight:700;line-height:1.1;">
+    A DONCO-BAYCITY™ App
+  </div>
+</header>
+
 <div id="viewer">
-<video id="video" autoplay playsinline muted></video>
-<canvas id="frozen"></canvas>
-<div id="message">Tap Start Camera</div>
-<div id="zoomBadge">1.0×</div>
-<div class="crosshair"></div>
-<div id="focusRing"></div>
-<div id="focusHint">Tap the picture to focus</div>
-<button id="captureButton" aria-label="Take or save photo">📷</button>
-<div id="captureLabel">Photo</div>
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="frozen"></canvas>
+  <div id="message">Tap Start Camera</div>
+  <div id="zoomBadge">1.0×</div>
+  <div class="crosshair"></div>
+  <div id="focusRing"></div>
+  <div id="focusHint">Tap the picture to focus</div>
+  <button id="captureButton" aria-label="Take or save photo">📷</button>
+  <div id="captureLabel">Photo</div>
 </div>
+
 <div id="controls">
   <div class="zoomRow">
     <button id="minus">−</button>
@@ -265,23 +275,32 @@ input[type=range]{width:100%;accent-color:white}
         <input id="brightness" type="range" min="50" max="180" value="100" step="5">
         <div id="brightnessValue" class="adjustValue">100%</div>
       </div>
+
       <div class="adjustRow">
         <label for="contrast">Contrast</label>
         <input id="contrast" type="range" min="50" max="200" value="100" step="5">
         <div id="contrastValue" class="adjustValue">100%</div>
       </div>
+
       <button id="resetAdjust">Reset Brightness & Contrast</button>
     </div>
   </div>
-</div></div>
+</div>
+
 <script>
-const video=document.getElementById('video'),frozen=document.getElementById('frozen'),
-startBtn=document.getElementById('start'),freezeBtn=document.getElementById('freeze'),
-lightBtn=document.getElementById('light'),saveBtn=document.getElementById('save'),
+const video=document.getElementById('video'),
+frozen=document.getElementById('frozen'),
+startBtn=document.getElementById('start'),
+freezeBtn=document.getElementById('freeze'),
+lightBtn=document.getElementById('light'),
+saveBtn=document.getElementById('save'),
 minusBtn=document.getElementById('minus'),
-plusBtn=document.getElementById('plus'),zoomSlider=document.getElementById('zoom'),
-zoomBadge=document.getElementById('zoomBadge'),message=document.getElementById('message'),
-viewer=document.getElementById('viewer'),focusRing=document.getElementById('focusRing'),
+plusBtn=document.getElementById('plus'),
+zoomSlider=document.getElementById('zoom'),
+zoomBadge=document.getElementById('zoomBadge'),
+message=document.getElementById('message'),
+viewer=document.getElementById('viewer'),
+focusRing=document.getElementById('focusRing'),
 focusHint=document.getElementById('focusHint'),
 brightnessSlider=document.getElementById('brightness'),
 contrastSlider=document.getElementById('contrast'),
@@ -293,10 +312,23 @@ advancedPanel=document.getElementById('advancedPanel'),
 focusLockBtn=document.getElementById('focusLock'),
 captureButton=document.getElementById('captureButton'),
 captureLabel=document.getElementById('captureLabel');
-let stream=null,track=null,frozenMode=false,torchOn=false,magnification=1,readingMode='normal',focusLocked=false;
-function setMessage(t){message.textContent=t;message.style.display=t?'block':'none'}
+
+let stream=null,
+track=null,
+frozenMode=false,
+torchOn=false,
+magnification=1,
+readingMode='normal',
+focusLocked=false;
+
+function setMessage(t){
+  message.textContent=t;
+  message.style.display=t?'block':'none';
+}
+
 function applyVisuals(){
   magnification=Number(zoomSlider.value);
+
   const brightness=Number(brightnessSlider.value);
   const contrast=Number(contrastSlider.value);
 
@@ -304,11 +336,22 @@ function applyVisuals(){
   frozen.style.transform=`scale(${magnification})`;
 
   let extra='';
-  if(readingMode==='contrast') extra=' contrast(165%) saturate(115%)';
-  if(readingMode==='bw') extra=' grayscale(100%) contrast(145%)';
-  if(readingMode==='invert') extra=' invert(100%) grayscale(100%) contrast(135%)';
 
-  const filter=`brightness(${brightness}%) contrast(${contrast}%)${extra}`;
+  if(readingMode==='contrast'){
+    extra=' contrast(165%) saturate(115%)';
+  }
+
+  if(readingMode==='bw'){
+    extra=' grayscale(100%) contrast(145%)';
+  }
+
+  if(readingMode==='invert'){
+    extra=' invert(100%) grayscale(100%) contrast(135%)';
+  }
+
+  const filter=
+    `brightness(${brightness}%) contrast(${contrast}%)${extra}`;
+
   video.style.filter=filter;
   frozen.style.filter=filter;
 
@@ -317,19 +360,37 @@ function applyVisuals(){
   contrastValue.textContent=contrast+'%';
 }
 
-function applyZoom(){applyVisuals()}
+function applyZoom(){
+  applyVisuals();
+}
 
 function showFocusRing(x,y){
   focusRing.style.left=x+'px';
   focusRing.style.top=y+'px';
   focusRing.style.display='block';
+
   focusRing.animate(
-    [{transform:'translate(-50%,-50%) scale(1.35)',opacity:.4},
-     {transform:'translate(-50%,-50%) scale(1)',opacity:1}],
-    {duration:180,easing:'ease-out'}
+    [
+      {
+        transform:'translate(-50%,-50%) scale(1.35)',
+        opacity:.4
+      },
+      {
+        transform:'translate(-50%,-50%) scale(1)',
+        opacity:1
+      }
+    ],
+    {
+      duration:180,
+      easing:'ease-out'
+    }
   );
+
   clearTimeout(showFocusRing.timer);
-  showFocusRing.timer=setTimeout(()=>{focusRing.style.display='none'},900);
+
+  showFocusRing.timer=setTimeout(()=>{
+    focusRing.style.display='none';
+  },900);
 }
 
 async function focusAtPoint(clientX,clientY){
@@ -342,13 +403,28 @@ async function focusAtPoint(clientX,clientY){
   }
 
   const rect=viewer.getBoundingClientRect();
-  const x=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
-  const y=Math.max(0,Math.min(1,(clientY-rect.top)/rect.height));
 
-  showFocusRing(clientX-rect.left,clientY-rect.top);
+  const x=Math.max(
+    0,
+    Math.min(1,(clientX-rect.left)/rect.width)
+  );
+
+  const y=Math.max(
+    0,
+    Math.min(1,(clientY-rect.top)/rect.height)
+  );
+
+  showFocusRing(
+    clientX-rect.left,
+    clientY-rect.top
+  );
 
   try{
-    const caps=track.getCapabilities ? track.getCapabilities() : {};
+    const caps=
+      track.getCapabilities
+        ? track.getCapabilities()
+        : {};
+
     const advanced={};
 
     if(caps.pointsOfInterest){
@@ -356,27 +432,34 @@ async function focusAtPoint(clientX,clientY){
     }
 
     if(Array.isArray(caps.focusMode)){
-      if(caps.focusMode.includes('single-shot')) advanced.focusMode='single-shot';
-      else if(caps.focusMode.includes('continuous')) advanced.focusMode='continuous';
+      if(caps.focusMode.includes('single-shot')){
+        advanced.focusMode='single-shot';
+      }else if(caps.focusMode.includes('continuous')){
+        advanced.focusMode='continuous';
+      }
     }
 
     if(Object.keys(advanced).length){
-      await track.applyConstraints({advanced:[advanced]});
+      await track.applyConstraints({
+        advanced:[advanced]
+      });
+
       focusHint.textContent='Focused';
     }else{
       focusHint.textContent='Continuous autofocus';
     }
+
   }catch(err){
     console.error(err);
     focusHint.textContent='Continuous autofocus';
   }
 
   clearTimeout(focusAtPoint.timer);
+
   focusAtPoint.timer=setTimeout(()=>{
     focusHint.textContent='Tap the picture to focus';
   },1200);
 }
-
 
 async function toggleFocusLock(){
   if(!track){
@@ -385,100 +468,273 @@ async function toggleFocusLock(){
   }
 
   try{
-    const caps=track.getCapabilities ? track.getCapabilities() : {};
-    const modes=Array.isArray(caps.focusMode) ? caps.focusMode : [];
+    const caps=
+      track.getCapabilities
+        ? track.getCapabilities()
+        : {};
+
+    const modes=
+      Array.isArray(caps.focusMode)
+        ? caps.focusMode
+        : [];
 
     if(!focusLocked){
-      // Best available browser-level lock:
-      // manual if supported, otherwise single-shot.
+
       if(modes.includes('manual')){
-        await track.applyConstraints({advanced:[{focusMode:'manual'}]});
+        await track.applyConstraints({
+          advanced:[
+            {
+              focusMode:'manual'
+            }
+          ]
+        });
+
         focusLocked=true;
+
       }else if(modes.includes('single-shot')){
-        await track.applyConstraints({advanced:[{focusMode:'single-shot'}]});
+
+        await track.applyConstraints({
+          advanced:[
+            {
+              focusMode:'single-shot'
+            }
+          ]
+        });
+
         focusLocked=true;
+
       }else{
-        setMessage('Focus Lock is not supported by this phone/browser.');
+        setMessage(
+          'Focus Lock is not supported by this phone/browser.'
+        );
         return;
       }
 
       focusLockBtn.classList.add('active');
       focusLockBtn.textContent='Unlock Focus';
+
       setMessage('Focus locked.');
+
     }else{
+
       if(modes.includes('continuous')){
-        await track.applyConstraints({advanced:[{focusMode:'continuous'}]});
+        await track.applyConstraints({
+          advanced:[
+            {
+              focusMode:'continuous'
+            }
+          ]
+        });
       }
+
       focusLocked=false;
+
       focusLockBtn.classList.remove('active');
       focusLockBtn.textContent='Lock Focus';
+
       setMessage('Autofocus restored.');
     }
 
     clearTimeout(toggleFocusLock.timer);
-    toggleFocusLock.timer=setTimeout(()=>setMessage(''),1200);
+
+    toggleFocusLock.timer=setTimeout(()=>{
+      setMessage('');
+    },1200);
 
   }catch(err){
     console.error(err);
+
     focusLocked=false;
+
     focusLockBtn.classList.remove('active');
     focusLockBtn.textContent='Lock Focus';
-    setMessage('Focus Lock is not supported by this phone/browser.');
+
+    setMessage(
+      'Focus Lock is not supported by this phone/browser.'
+    );
   }
 }
 
 async function startCamera(){
- try{
-  if(stream)stream.getTracks().forEach(t=>t.stop());
-  focusLocked=false;
-  focusLockBtn.classList.remove('active');
-  focusLockBtn.textContent='Lock Focus';
+  try{
 
-  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{
-    facingMode:{ideal:'environment'},
-    width:{ideal:1920},
-    height:{ideal:1080},
-    focusMode:{ideal:'continuous'}
-  }});
-  video.srcObject=stream;track=stream.getVideoTracks()[0];await video.play();
-  frozenMode=false;frozen.style.display='none';video.style.display='block';
-  freezeBtn.disabled=false;saveBtn.disabled=false;startBtn.textContent='Restart';
-  const caps=track.getCapabilities?track.getCapabilities():{};lightBtn.disabled=!caps.torch;lightBtn.textContent=caps.torch?'Light':'No Light';
-  setMessage('');applyZoom();
- }catch(e){console.error(e);setMessage('Allow camera access, then tap Start Camera again.')}
-}
-async function toggleTorch(){
- if(!track||!track.getCapabilities)return;const caps=track.getCapabilities();if(!caps.torch)return;
- torchOn=!torchOn;
- try{await track.applyConstraints({advanced:[{torch:torchOn}]});lightBtn.classList.toggle('active',torchOn);lightBtn.textContent=torchOn?'Light On':'Light'}
- catch(e){torchOn=false;lightBtn.classList.remove('active');lightBtn.textContent='Light';setMessage('Flashlight control is not available on this phone/browser.')}
-}
-function freezeImage(){
- if(!stream)return;
- if(!frozenMode){
-  const w=video.videoWidth||1280,h=video.videoHeight||720;frozen.width=w;frozen.height=h;frozen.getContext('2d').drawImage(video,0,0,w,h);
-  frozenMode=true;video.style.display='none';frozen.style.display='block';freezeBtn.textContent='Resume';freezeBtn.classList.add('active');
- }else{
-  frozenMode=false;frozen.style.display='none';video.style.display='block';freezeBtn.textContent='Freeze';freezeBtn.classList.remove('active');
- }
- applyZoom();
-}
-viewer.addEventListener('pointerdown',(e)=>{
-  focusAtPoint(e.clientX,e.clientY);
-});
+    if(stream){
+      stream.getTracks().forEach(t=>t.stop());
+    }
 
+    focusLocked=false;
 
-async function savePhoto(){
-  if(!stream && !frozenMode){
-    setMessage('Start the camera first.');
-    return;
+    focusLockBtn.classList.remove('active');
+    focusLockBtn.textContent='Lock Focus';
+
+    stream=
+      await navigator.mediaDevices.getUserMedia({
+        audio:false,
+        video:{
+          facingMode:{
+            ideal:'environment'
+          },
+          width:{
+            ideal:1920
+          },
+          height:{
+            ideal:1080
+          },
+          focusMode:{
+            ideal:'continuous'
+          }
+        }
+      });
+
+    video.srcObject=stream;
+
+    track=stream.getVideoTracks()[0];
+
+    await video.play();
+
+    frozenMode=false;
+
+    frozen.style.display='none';
+    video.style.display='block';
+
+    freezeBtn.disabled=false;
+    saveBtn.disabled=false;
+
+    startBtn.textContent='Restart';
+
+    const caps=
+      track.getCapabilities
+        ? track.getCapabilities()
+        : {};
+
+    lightBtn.disabled=!caps.torch;
+
+    lightBtn.textContent=
+      caps.torch
+        ? 'Light'
+        : 'No Light';
+
+    setMessage('');
+
+    applyZoom();
+
+  }catch(e){
+    console.error(e);
+
+    setMessage(
+      'Allow camera access, then tap Start Camera again.'
+    );
   }
+}
+
+async function toggleTorch(){
+  if(!track || !track.getCapabilities)return;
+
+  const caps=track.getCapabilities();
+
+  if(!caps.torch)return;
+
+  torchOn=!torchOn;
 
   try{
-    const capture=document.createElement('canvas');
-    const ctx=capture.getContext('2d');
+    await track.applyConstraints({
+      advanced:[
+        {
+          torch:torchOn
+        }
+      ]
+    });
 
-    let source, sw, sh;
+    lightBtn.classList.toggle(
+      'active',
+      torchOn
+    );
+
+    lightBtn.textContent=
+      torchOn
+        ? 'Light On'
+        : 'Light';
+
+  }catch(e){
+
+    torchOn=false;
+
+    lightBtn.classList.remove('active');
+
+    lightBtn.textContent='Light';
+
+    setMessage(
+      'Flashlight control is not available on this phone/browser.'
+    );
+  }
+}
+
+function freezeImage(){
+  if(!stream)return;
+
+  if(!frozenMode){
+
+    const w=video.videoWidth||1280;
+    const h=video.videoHeight||720;
+
+    frozen.width=w;
+    frozen.height=h;
+
+    frozen
+      .getContext('2d')
+      .drawImage(
+        video,
+        0,
+        0,
+        w,
+        h
+      );
+
+    frozenMode=true;
+
+    video.style.display='none';
+    frozen.style.display='block';
+
+    freezeBtn.textContent='Resume';
+    freezeBtn.classList.add('active');
+
+  }else{
+
+    frozenMode=false;
+
+    frozen.style.display='none';
+    video.style.display='block';
+
+    freezeBtn.textContent='Freeze';
+    freezeBtn.classList.remove('active');
+  }
+
+  applyZoom();
+}
+
+viewer.addEventListener(
+  'pointerdown',
+  (e)=>{
+    focusAtPoint(
+      e.clientX,
+      e.clientY
+    );
+  }
+);
+
+async function savePhoto(){
+  if(!stream && !frozenMode)return;
+
+  try{
+    const capture=
+      document.createElement('canvas');
+
+    const ctx=
+      capture.getContext('2d');
+
+    let source;
+    let sw;
+    let sh;
 
     if(frozenMode){
       source=frozen;
@@ -491,134 +747,347 @@ async function savePhoto(){
     }
 
     if(!sw || !sh){
-      setMessage('Camera image is not ready yet.');
+      setMessage(
+        'Camera image is not ready yet.'
+      );
       return;
     }
 
-    // Save the center area at the same magnification shown on screen.
-    const z=Math.max(1,Number(zoomSlider.value));
+    const z=
+      Math.max(
+        1,
+        Number(zoomSlider.value)
+      );
+
     const cropW=sw/z;
     const cropH=sh/z;
+
     const sx=(sw-cropW)/2;
     const sy=(sh-cropH)/2;
 
-    capture.width=Math.round(cropW);
-    capture.height=Math.round(cropH);
+    capture.width=
+      Math.round(cropW);
 
-    const brightness=Number(brightnessSlider.value);
-    const contrast=Number(contrastSlider.value);
+    capture.height=
+      Math.round(cropH);
+
+    const brightness=
+      Number(brightnessSlider.value);
+
+    const contrast=
+      Number(contrastSlider.value);
 
     let extra='';
-    if(readingMode==='contrast') extra=' contrast(165%) saturate(115%)';
-    if(readingMode==='bw') extra=' grayscale(100%) contrast(145%)';
-    if(readingMode==='invert') extra=' invert(100%) grayscale(100%) contrast(135%)';
 
-    ctx.filter=`brightness(${brightness}%) contrast(${contrast}%)${extra}`;
+    if(readingMode==='contrast'){
+      extra=' contrast(165%) saturate(115%)';
+    }
+
+    if(readingMode==='bw'){
+      extra=' grayscale(100%) contrast(145%)';
+    }
+
+    if(readingMode==='invert'){
+      extra=' invert(100%) grayscale(100%) contrast(135%)';
+    }
+
+    ctx.filter=
+      `brightness(${brightness}%) contrast(${contrast}%)${extra}`;
 
     ctx.drawImage(
       source,
-      sx,sy,cropW,cropH,
-      0,0,capture.width,capture.height
+      sx,
+      sy,
+      cropW,
+      cropH,
+      0,
+      0,
+      capture.width,
+      capture.height
     );
 
     ctx.filter='none';
 
-    const blob=await new Promise(resolve=>
-      capture.toBlob(resolve,'image/jpeg',0.95)
-    );
+    const blob=
+      await new Promise(
+        resolve=>
+          capture.toBlob(
+            resolve,
+            'image/jpeg',
+            0.95
+          )
+      );
 
     if(!blob){
-      setMessage('Could not create the photo.');
+      setMessage(
+        'Could not create the photo.'
+      );
       return;
     }
 
-    const file=new File(
-      [blob],
-      'camera-loupe-'+new Date().toISOString().replace(/[:.]/g,'-')+'.jpg',
-      {type:'image/jpeg'}
-    );
+    const file=
+      new File(
+        [blob],
+        'camera-loupe-'+
+          new Date()
+            .toISOString()
+            .replace(/[:.]/g,'-')+
+          '.jpg',
+        {
+          type:'image/jpeg'
+        }
+      );
 
-    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+    if(
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare({
+        files:[file]
+      })
+    ){
+
       await navigator.share({
         files:[file],
         title:'Camera Loupe Photo'
       });
-      setMessage('Photo ready to save or share.');
+
+      setMessage(
+        'Photo ready to save or share.'
+      );
+
     }else{
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
+
+      const url=
+        URL.createObjectURL(blob);
+
+      const a=
+        document.createElement('a');
+
       a.href=url;
       a.download=file.name;
+
       document.body.appendChild(a);
+
       a.click();
+
       a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url),2000);
-      setMessage('Photo saved/downloaded.');
+
+      setTimeout(
+        ()=>URL.revokeObjectURL(url),
+        2000
+      );
+
+      setMessage(
+        'Photo saved/downloaded.'
+      );
     }
 
     clearTimeout(savePhoto.timer);
-    savePhoto.timer=setTimeout(()=>setMessage(''),1600);
+
+    savePhoto.timer=setTimeout(
+      ()=>setMessage(''),
+      1600
+    );
 
   }catch(err){
-    if(err && err.name==='AbortError')return;
+
+    if(
+      err &&
+      err.name==='AbortError'
+    )return;
+
     console.error(err);
-    setMessage('Could not save the photo on this browser.');
+
+    setMessage(
+      'Could not save the photo on this browser.'
+    );
   }
 }
 
-focusLockBtn.addEventListener('click',toggleFocusLock);
+focusLockBtn.addEventListener(
+  'click',
+  toggleFocusLock
+);
 
-moreButton.addEventListener('click',()=>{
-  const open=advancedPanel.classList.toggle('open');
-  moreButton.textContent=open?'Hide Controls ▾':'More Controls ▴';
-  focusHint.style.bottom=open?'46vh':'176px';
-  captureButton.style.bottom=open?'46vh':'190px';
-  captureLabel.style.bottom=open?'calc(46vh - 30px)':'160px';
-});
+moreButton.addEventListener(
+  'click',
+  ()=>{
+    const open=
+      advancedPanel
+        .classList
+        .toggle('open');
 
-document.querySelectorAll('.modeBtn').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    readingMode=btn.dataset.mode;
-    document.querySelectorAll('.modeBtn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
+    moreButton.textContent=
+      open
+        ? 'Hide Controls ▾'
+        : 'More Controls ▴';
+
+    focusHint.style.bottom=
+      open
+        ? '46vh'
+        : '176px';
+
+    captureButton.style.bottom=
+      open
+        ? '46vh'
+        : '190px';
+
+    captureLabel.style.bottom=
+      open
+        ? 'calc(46vh - 30px)'
+        : '160px';
+  }
+);
+
+document
+  .querySelectorAll('.modeBtn')
+  .forEach(
+    btn=>{
+      btn.addEventListener(
+        'click',
+        ()=>{
+          readingMode=
+            btn.dataset.mode;
+
+          document
+            .querySelectorAll('.modeBtn')
+            .forEach(
+              b=>
+                b.classList.remove('active')
+            );
+
+          btn.classList.add('active');
+
+          applyVisuals();
+
+          const names={
+            normal:'Normal view',
+            contrast:'High Contrast mode',
+            bw:'Black & White mode',
+            invert:'Invert Colors mode'
+          };
+
+          setMessage(
+            names[readingMode]
+          );
+
+          clearTimeout(
+            btn._timer
+          );
+
+          btn._timer=
+            setTimeout(
+              ()=>setMessage(''),
+              1000
+            );
+        }
+      );
+    }
+  );
+
+zoomSlider.addEventListener(
+  'input',
+  applyVisuals
+);
+
+brightnessSlider.addEventListener(
+  'input',
+  applyVisuals
+);
+
+contrastSlider.addEventListener(
+  'input',
+  applyVisuals
+);
+
+resetAdjust.addEventListener(
+  'click',
+  ()=>{
+    brightnessSlider.value=100;
+    contrastSlider.value=100;
+
     applyVisuals();
 
-    const names={
-      normal:'Normal view',
-      contrast:'High Contrast mode',
-      bw:'Black & White mode',
-      invert:'Invert Colors mode'
-    };
-    setMessage(names[readingMode]);
-    clearTimeout(btn._timer);
-    btn._timer=setTimeout(()=>setMessage(''),1000);
-  });
-});
+    setMessage(
+      'Brightness and contrast reset.'
+    );
 
-zoomSlider.addEventListener('input',applyVisuals);
-brightnessSlider.addEventListener('input',applyVisuals);
-contrastSlider.addEventListener('input',applyVisuals);
+    clearTimeout(
+      resetAdjust.timer
+    );
 
-resetAdjust.addEventListener('click',()=>{
-  brightnessSlider.value=100;
-  contrastSlider.value=100;
-  applyVisuals();
-  setMessage('Brightness and contrast reset.');
-  clearTimeout(resetAdjust.timer);
-  resetAdjust.timer=setTimeout(()=>setMessage(''),1200);
-});
-minusBtn.addEventListener('click',()=>{zoomSlider.value=Math.max(1,Number(zoomSlider.value)-.5);applyZoom()});
-plusBtn.addEventListener('click',()=>{zoomSlider.value=Math.min(6,Number(zoomSlider.value)+.5);applyZoom()});
-startBtn.addEventListener('click',startCamera);
-freezeBtn.addEventListener('click',freezeImage);
-lightBtn.addEventListener('click',toggleTorch);
-saveBtn.addEventListener('click',savePhoto);
-captureButton.addEventListener('click',savePhoto);
+    resetAdjust.timer=
+      setTimeout(
+        ()=>setMessage(''),
+        1200
+      );
+  }
+);
+
+minusBtn.addEventListener(
+  'click',
+  ()=>{
+    zoomSlider.value=
+      Math.max(
+        1,
+        Number(zoomSlider.value)-.5
+      );
+
+    applyZoom();
+  }
+);
+
+plusBtn.addEventListener(
+  'click',
+  ()=>{
+    zoomSlider.value=
+      Math.min(
+        6,
+        Number(zoomSlider.value)+.5
+      );
+
+    applyZoom();
+  }
+);
+
+startBtn.addEventListener(
+  'click',
+  startCamera
+);
+
+freezeBtn.addEventListener(
+  'click',
+  freezeImage
+);
+
+lightBtn.addEventListener(
+  'click',
+  toggleTorch
+);
+
+saveBtn.addEventListener(
+  'click',
+  savePhoto
+);
+
+captureButton.addEventListener(
+  'click',
+  savePhoto
+);
+
 applyVisuals();
 
-window.addEventListener('pagehide',()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});
-</script><div style="text-align:center;color:#bbb;font-size:13px;font-weight:700;padding:8px 0;">
-A DONCO-BAYCITY™ App
-</div>
+window.addEventListener(
+  'pagehide',
+  ()=>{
+    if(stream){
+      stream
+        .getTracks()
+        .forEach(t=>t.stop());
+    }
+  }
+);
+</script>
+
 </body>
 </html>
